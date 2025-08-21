@@ -30,5 +30,13 @@ impl Interval {
         Interval { min: -INFINITY, max: INFINITY }
     }
 
+    pub fn clamp(&self, x: f32) -> f32 {
+        if x < self.min {
+            return self.min;
+        } else if x > self.max {
+            return self.max;
+        }
+        x
+    }
 
 }

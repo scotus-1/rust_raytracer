@@ -1,6 +1,7 @@
 use std::{f32::INFINITY, io, io::Write};
 
 use bevy::math::{vec3, Dir3, Ray3d, Vec3};
+use rand::Rng;
 use crate::{color::{write_color, Color}, hittable::Hittable, interval::Interval, Point3};
 
 
@@ -14,12 +15,16 @@ const CAMERA_CENTER: Point3 = Point3::ZERO;
 const IMAGE_WIDTH_DEF: u32 = 800;
 const VIEWPORT_HEIGHT: f32 = 2.0;
 
+const SAMPLES_PER_PIXEL_DEF: u32 = 10;
+
 
 pub struct Camera {
     // aspect ratio is a real/ideal value
     aspect_ratio: f32,
     image_width: u32,
     image_height: u32,
+    samples_per_pixel: u32,
+    pixel_sample_scale: f32,
     center: Point3,
     pixel00_loc: Point3,
     pixel_delta_u: Vec3,
@@ -39,11 +44,13 @@ impl Camera {
         
             for h in 0..self.image_height {
                 for w in 0..self.image_width {
-                    let pixel_center: Point3 = self.pixel00_loc + (w as f32 * self.pixel_delta_u) + (h as f32 * self.pixel_delta_v);
-                    
-                    let r = Ray3d::new(self.center, Dir3::new(pixel_center-self.center).unwrap());
-                    let pixel_color = Self::ray_color(&r, world);
-                    write_color(&mut out_handle, &pixel_color);
+                    let mut pixel_color = Color::ZERO;
+                    for _sample in 0..self.samples_per_pixel {
+                        let r = self.get_ray(h, w);
+                        pixel_color += Self::ray_color(&r, world);
+                    }
+
+                    write_color(&mut out_handle, &(self.pixel_sample_scale * pixel_color));
                 }
 
                 let _ = writeln!(err_handle, "Scanlines remaining: {}", self.image_height-h); 
@@ -52,12 +59,13 @@ impl Camera {
     }
 
     pub fn new() -> Self {
-        let mut cam = Camera { aspect_ratio: ASPECT_RATIO_DEF, image_width: IMAGE_WIDTH_DEF, image_height: 0, 
+        let mut cam = Camera { aspect_ratio: ASPECT_RATIO_DEF, image_width: IMAGE_WIDTH_DEF, image_height: 0, samples_per_pixel: SAMPLES_PER_PIXEL_DEF, pixel_sample_scale: 1.0/SAMPLES_PER_PIXEL_DEF as f32,
                                 center: Point3::ZERO, pixel00_loc: Point3::ZERO, pixel_delta_u: Vec3::ZERO, pixel_delta_v: Vec3::ZERO };
         cam.init(ASPECT_RATIO_DEF, IMAGE_WIDTH_DEF);
         cam
     }
 
+    // init recalculates all basis vectors important to rendering based off any changes made explicitly to cut time
     fn init(&mut self, aspect_ratio: f32, image_width: u32) {
         // const image_height: u32 = if image_width < 1 {1} else {image_height};
         // image width & height are rounded to integers for pixel values
@@ -91,6 +99,11 @@ impl Camera {
         self.init(self.aspect_ratio, image_width);
     }
 
+    pub fn set_samples_per_pixel(&mut self, spp: u32) {
+        self.samples_per_pixel = spp;
+        self.pixel_sample_scale = 1.0/spp as f32;
+    }
+
     fn ray_color<T: Hittable>(r: &Ray3d, world: &T) -> Color {
         // by using Dir3d within Ray3d every Vec is normalized
         match world.hit(r, Interval::interval(0.0, INFINITY)) {
@@ -105,5 +118,21 @@ impl Camera {
         let color1 = Color::new(1.0,1.0,1.0);
         let color2 = Color::new(0.5,0.7,1.0);
         return color1.lerp(color2, t)
+    }
+
+    fn get_ray(&self, h: u32, w: u32) -> Ray3d {
+        // create a ray with origin at at pxl center and then direction within a certain square
+        let offset = Self::random_sample_sq();
+        let pixel_sample_pos: Point3 = self.pixel00_loc
+                                        + ((w as f32 + offset.x)  * self.pixel_delta_u) 
+                                        + ((h as f32 + offset.y) * self.pixel_delta_v);
+ 
+        let ray_direction: Vec3 = pixel_sample_pos - self.center;
+        Ray3d { origin: self.center, direction: Dir3::new(ray_direction).unwrap() }
+    }
+
+    fn random_sample_sq() -> Vec3 {
+        let mut rand = rand::thread_rng();
+        Vec3 { x: rand.gen::<f32>() - 0.5 , y: rand.gen::<f32>() - 0.5, z: 0.0 }
     }
 }

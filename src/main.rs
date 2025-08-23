@@ -17,12 +17,15 @@ mod camera;
 fn main() {
     let mut world: HittableList = HittableList::hittable_list(None);
     world.add(Rc::new(sphere(Point3::new(0.0, 0.0, -1.0), 0.5)));
-    world.add(Rc::new(sphere(Point3::new(0.0, -50.0, -1.0), 45.0)));
+
+    world.add(Rc::new(sphere(Point3::new(0.0, -100.5, -1.0), 100.0)));
 
     let mut cam: Camera = Camera::new();
-    cam.set_image_width(800);
-    cam.set_samples_per_pixel(50);
+    cam.set_image_width(1080);
+    cam.set_samples_per_pixel(500);
+    cam.max_child_rays = 50;
     cam.render(&world);
+    
 }
 
 

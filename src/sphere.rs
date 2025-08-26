@@ -1,15 +1,18 @@
-use crate::{hittable::{self, HitRecord}, interval::Interval, Point3};
-use bevy::math::{ops::sqrt, Dir3, Ray3d};
+use std::rc::Rc;
+
+use crate::{hittable::{self, HitRecord}, interval::Interval, material::Material, Point3};
+use bevy::{math::{ops::sqrt, Dir3, Ray3d}};
 
 
 pub struct Sphere {
     center: Point3,
-    radius: f32
+    radius: f32,
+    mat: Rc<dyn Material>
 }   
 
-pub fn sphere(center: Point3, radius: f32) -> Sphere {
+pub fn sphere(center: Point3, radius: f32, mat: Rc<dyn Material>) -> Sphere {
     assert!(radius.abs() >= 0.0);
-    Sphere { center, radius }
+    Sphere { center, radius , mat}
 }
 
 impl hittable::Hittable for Sphere {
@@ -40,6 +43,6 @@ impl hittable::Hittable for Sphere {
         let p = r.get_point(t);
         let normal = Dir3::new((p - self.center) / self.radius).unwrap();
         
-        Some(HitRecord::new(p, normal, t, r))
+        Some(HitRecord::new(p, normal, t, r, self.mat.clone()))
     }
 }

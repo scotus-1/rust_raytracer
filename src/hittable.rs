@@ -1,19 +1,22 @@
+use std::rc::Rc;
+
 use bevy::math::{Dir3, Ray3d};
 
-use crate::{interval::{Interval}, Point3};
+use crate::{interval::Interval, material::Material, Point3};
 
 pub struct HitRecord {
     pub p: Point3,
     pub normal: Dir3,
     pub t: f32,
-    pub front_face: bool
+    pub front_face: bool,
+    pub mat: Rc<dyn Material>
 }
 
 impl HitRecord {
-    pub fn new(p: Point3, outward_n: Dir3, t: f32, r: &Ray3d) -> Self {
+    pub fn new(p: Point3, outward_n: Dir3, t: f32, r: &Ray3d, mat: Rc<dyn Material>) -> Self {
         let front_face = if r.direction.dot(outward_n.as_vec3()) < 0.0 {true} else {false};
         let normal = if front_face {outward_n} else {-outward_n};
-        HitRecord {p, normal, t, front_face}
+        HitRecord {p, normal, t, front_face, mat}
     }
 
     // basically can set manually for verification purposes but will be auto calculated for purposes

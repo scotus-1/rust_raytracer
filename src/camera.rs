@@ -112,8 +112,12 @@ impl Camera {
         if child_rays <= 0 {return Color::new(0.0, 0.0, 0.0);}
         match world.hit(r, Interval::interval(0.001, INFINITY)) {
             Some(rec) => {
-                let dir_bounce = rec.normal.as_vec3() + random_unit_vec_on_hemisphere(&rec.normal).as_vec3();
-                return Self::ray_color(&Ray3d::new(rec.p, Dir3::new(dir_bounce).unwrap()), child_rays - 1, world) * 0.2;
+                match rec.mat.scatter(&r.direction, &rec) {
+                    Some((attenuation, scattered)) => {
+                        return attenuation * Self::ray_color(&scattered, child_rays-1, world)
+                    },
+                    None => {return Color::new(0.0,0.0,0.0)}
+                }
             },
             None => ()
         }

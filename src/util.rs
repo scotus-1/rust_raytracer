@@ -1,6 +1,6 @@
 use std::{f32::consts::PI, ops::Range};
 
-use bevy::math::{ops::{abs, sqrt}, Dir3, Vec3};
+use bevy::{math::{ops::{abs, sqrt}, Dir3, Vec3}, tasks::futures_lite::io::ReadToStringFuture};
 use rand::{thread_rng, Rng};
 
 pub fn degs_to_rads(degs: f32) -> f32 {
@@ -38,4 +38,8 @@ pub fn random_unit_vec() -> Dir3 {
 pub fn random_unit_vec_on_hemisphere(normal: &Vec3) -> Dir3 {
     let rnd_uvec = random_unit_vec();
     if rnd_uvec.dot(*normal) > 0.0 {rnd_uvec} else {-rnd_uvec}
+}
+
+pub fn reflect_vec3(v: &Vec3, n: &Vec3) -> Vec3 {
+    v - 2.0*v.dot(*n)*n
 }

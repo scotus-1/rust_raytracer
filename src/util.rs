@@ -1,7 +1,7 @@
 use std::{f32::consts::PI, ops::Range};
 
-use bevy::{math::{ops::{abs, sqrt}, Dir3, Vec3}, tasks::futures_lite::io::ReadToStringFuture};
-use rand::{thread_rng, Rng};
+use bevy::math::{ops::{abs, sqrt}, Dir3, Vec3};
+use rand::{Rng};
 
 pub fn degs_to_rads(degs: f32) -> f32 {
     degs * PI / 180.0
@@ -42,4 +42,15 @@ pub fn random_unit_vec_on_hemisphere(normal: &Vec3) -> Dir3 {
 
 pub fn reflect_vec3(v: &Vec3, n: &Vec3) -> Vec3 {
     v - 2.0*v.dot(*n)*n
+}
+
+pub fn refract_vec3(v: &Vec3, n: &Vec3, etai_div_etat: f32) -> Vec3 {
+    let cos_theta = -v.dot(*n).min(1.0);
+    let r_out_perp = etai_div_etat * (v + cos_theta*n);
+    let r_out_parallel = -sqrt(abs(1.0 - r_out_perp.length_squared())) * n;
+    r_out_parallel + r_out_perp
+} 
+
+pub fn random_sample_sq() -> Vec3 {
+    Vec3 { x: random_f32() - 0.5 , y: random_f32() - 0.5, z: 0.0 }
 }

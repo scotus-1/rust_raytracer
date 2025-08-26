@@ -14,9 +14,9 @@ pub struct HitRecord {
 
 impl HitRecord {
     pub fn new(p: Point3, outward_n: Dir3, t: f32, r: &Ray3d, mat: Rc<dyn Material>) -> Self {
-        let front_face = if r.direction.dot(outward_n.as_vec3()) < 0.0 {true} else {false};
-        let normal = if front_face {outward_n} else {-outward_n};
-        HitRecord {p, normal, t, front_face, mat}
+        let mut hr = HitRecord {p, normal: outward_n, t, front_face: true, mat};
+        hr.set_face_normal(r, &outward_n);
+        hr
     }
 
     // basically can set manually for verification purposes but will be auto calculated for purposes

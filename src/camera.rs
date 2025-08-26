@@ -1,8 +1,7 @@
 use std::{f32::INFINITY, io, io::Write};
 
 use bevy::math::{vec3, Dir3, Ray3d, Vec3};
-use rand::Rng;
-use crate::{color::{write_color, Color}, hittable::Hittable, interval::Interval, util::{random_f32, random_unit_vec_on_hemisphere}, Point3};
+use crate::{color::{write_color, Color}, hittable::Hittable, interval::Interval, util::{degs_to_rads, random_sample_sq}, Point3};
 
 
 const ASPECT_RATIO_DEF: f32 = 16.0 / 9.0;
@@ -17,16 +16,18 @@ const VIEWPORT_HEIGHT: f32 = 2.0;
 
 const SAMPLES_PER_PIXEL_DEF: u32 = 10;
 const MAX_CHILD_RAYS_DEF: u32 = 10;
+const VFOV_DEF: u32 = 90;
 
 
 pub struct Camera {
     // aspect ratio is a real/ideal value
-    aspect_ratio: f32,
-    image_width: u32,
+    pub aspect_ratio: f32,
+    pub image_width: u32,
     image_height: u32,
-    samples_per_pixel: u32,
-    pixel_sample_scale: f32,
+    pub samples_per_pixel: u32,
+    pub pixel_sample_scale: f32,
     pub max_child_rays: u32,
+    pub vfov: u32,
     center: Point3,
     pixel00_loc: Point3,
     pixel_delta_u: Vec3,
@@ -34,7 +35,8 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn render<T: Hittable>(&self, world: &T) {
+    pub fn render<T: Hittable>(&mut self, world: &T) {
+        self.init();
         // logging and ppm writing handles
         let stdout = io::stdout();
         let stderr = io::stderr();
@@ -61,27 +63,29 @@ impl Camera {
     }
 
     pub fn new() -> Self {
-        let mut cam = Camera { aspect_ratio: ASPECT_RATIO_DEF, image_width: IMAGE_WIDTH_DEF, image_height: 0, samples_per_pixel: SAMPLES_PER_PIXEL_DEF, pixel_sample_scale: 1.0/SAMPLES_PER_PIXEL_DEF as f32,
-                                max_child_rays: MAX_CHILD_RAYS_DEF, center: Point3::ZERO, pixel00_loc: Point3::ZERO, pixel_delta_u: Vec3::ZERO, pixel_delta_v: Vec3::ZERO };
-        cam.init(ASPECT_RATIO_DEF, IMAGE_WIDTH_DEF);
-        cam
+        Camera { aspect_ratio: ASPECT_RATIO_DEF, image_width: IMAGE_WIDTH_DEF, image_height: 0, samples_per_pixel: SAMPLES_PER_PIXEL_DEF, pixel_sample_scale: 1.0/SAMPLES_PER_PIXEL_DEF as f32,
+                max_child_rays: MAX_CHILD_RAYS_DEF, vfov: VFOV_DEF, center: Point3::ZERO, pixel00_loc: Point3::ZERO, pixel_delta_u: Vec3::ZERO, pixel_delta_v: Vec3::ZERO }
     }
 
     // init recalculates all basis vectors important to rendering based off any changes made explicitly to cut time
-    fn init(&mut self, aspect_ratio: f32, image_width: u32) {
+    fn init(&mut self) {
         // const image_height: u32 = if image_width < 1 {1} else {image_height};
         // image width & height are rounded to integers for pixel values
-        self.image_height = (image_width as f32/aspect_ratio) as u32;
+        self.image_height = (self.image_width as f32/self.aspect_ratio) as u32;
 
         // viewport properties
-        let viewport_width: f32 = VIEWPORT_HEIGHT * (image_width as f32 / self.image_height as f32);
+        let theta = degs_to_rads(self.vfov as f32);
+        let h = (theta / 2.0).tan();
+
+        let viewport_height = 2.0 * h * FOCAL_LENGTH;
+        let viewport_width: f32 = viewport_height * (self.image_width as f32 / self.image_height as f32);
         // basically the image height and width step insure integer pixel values which are then coverted
         // back into a REALER TRUER USABLE ratio, aka the viewport height and width
 
         // viewport vectors and delta vectors, basically from (0,0) to whatever +u,+v
         let viewport_u: Vec3 = vec3(viewport_width, 0.0, 0.0);
-        let viewport_v: Vec3 = vec3(0.0, -VIEWPORT_HEIGHT, 0.0);
-        self.pixel_delta_u = viewport_u / image_width as f32;
+        let viewport_v: Vec3 = vec3(0.0, -viewport_height, 0.0);
+        self.pixel_delta_u = viewport_u / self.image_width as f32;
         self.pixel_delta_v = viewport_v / self.image_height as f32;
         
         // note: foward is in the -z direction, which is why the focal length vec is subbed from cam_center
@@ -90,23 +94,7 @@ impl Camera {
         self.pixel00_loc = viewport_upper_left + 0.5*(self.pixel_delta_u + self.pixel_delta_v);
 
     }
-
-    pub fn set_aspect_ratio(&mut self, aspect_ratio: f32) {
-        self.aspect_ratio = aspect_ratio;
-        self.init(aspect_ratio, self.image_width);
-    }
-
-    pub fn set_image_width(&mut self, image_width: u32) {
-        self.image_width = image_width;
-        self.init(self.aspect_ratio, image_width);
-    }
-
-    pub fn set_samples_per_pixel(&mut self, spp: u32) {
-        self.samples_per_pixel = spp;
-        self.pixel_sample_scale = 1.0/spp as f32;
-    }
     
-
     fn ray_color<T: Hittable>(r: &Ray3d, child_rays: u32, world: &T) -> Color {
         // by using Dir3d within Ray3d every Vec is normalized
         if child_rays <= 0 {return Color::new(0.0, 0.0, 0.0);}
@@ -131,7 +119,7 @@ impl Camera {
 
     fn get_ray(&self, h: u32, w: u32) -> Ray3d {
         // create a ray with origin at at pxl center and then direction within a certain square
-        let offset = Self::random_sample_sq();
+        let offset = random_sample_sq();
         let pixel_sample_pos: Point3 = self.pixel00_loc
                                         + ((w as f32 + offset.x)  * self.pixel_delta_u) 
                                         + ((h as f32 + offset.y) * self.pixel_delta_v);
@@ -140,7 +128,5 @@ impl Camera {
         Ray3d { origin: self.center, direction: Dir3::new(ray_direction).unwrap() }
     }
 
-    fn random_sample_sq() -> Vec3 {
-        Vec3 { x: random_f32() - 0.5 , y: random_f32() - 0.5, z: 0.0 }
-    }
+
 }

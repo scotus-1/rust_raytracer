@@ -19,13 +19,13 @@ fn main() {
     let mut world: HittableList = HittableList::hittable_list(None);
     let mat_ground: Rc<LambertianMaterial> = Rc::new(LambertianMaterial{albedo: Color::new(0.8, 0.8, 0.0)});
     let mat_center: Rc<LambertianMaterial> = Rc::new(LambertianMaterial{albedo: Color::new(0.1, 0.2, 0.5)});
-    let mat_left: Rc<MetalMaterial> = Rc::new(MetalMaterial { albedo: Color::new(0.8, 0.8, 0.8) });
-    let mat_right: Rc<MetalMaterial> = Rc::new(MetalMaterial { albedo: Color::new(0.8, 0.6, 0.2) });
+    let mat_left: Rc<MetalMaterial> = Rc::new(MetalMaterial::new(Color::new(0.8, 0.8, 0.8), 0.3));
+    let mat_right: Rc<MetalMaterial> = Rc::new(MetalMaterial::new(Color::new(0.8, 0.6, 0.2), 1.0 ));
 
-    world.add(Rc::new(sphere(Point3::new(0.0, 0.0, -1.0), 0.5, mat_center)));
+    world.add(Rc::new(sphere(Point3::new(0.0, 0.0, -1.2), 0.5, mat_center)));
     world.add(Rc::new(sphere(Point3::new(0.0, -100.5, -1.0), 100.0, mat_ground)));
-    world.add(Rc::new(sphere(Point3::new(-1.0, -100.5, -1.0), 0.5, mat_left)));
-    world.add(Rc::new(sphere(Point3::new(1.0, -100.5, -1.0), 100.0, mat_right)));
+    world.add(Rc::new(sphere(Point3::new(-1.0, 0.0, -1.0), 0.5, mat_left)));
+    world.add(Rc::new(sphere(Point3::new(1.0, 0.0, -1.0), 0.5, mat_right)));
 
     let mut cam: Camera = Camera::new();
     cam.set_image_width(600);
